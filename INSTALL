@@ -2,6 +2,6 @@ INSTALL
 
 1. Das Skript speichern unter /usr/local/sbin/cleanchannels.sh (Beispiel)
 2. Ausführbar machen: chmod +x /usr/local/sbin/cleanchannels.sh
-3. Nur unster Gen2VDR: Einbinden vor dem Start von VDR
+3. Nur unter Gen2VDR: Einbinden vor dem Start von VDR
    echo "/usr/local/sbin/cleanchannels.sh 25" > /etc/vdr.d/8800_cleanchannels
    chmod +x /etc/vdr.d/8800_cleanchannels
