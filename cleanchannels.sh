@@ -2,7 +2,7 @@
 
 # cleanchannels.sh - Kanalliste des VDR aufräumen
 # Author: MegaV0lt
-VERSION=191008
+VERSION=200605
 
 # 01.09.2013: Leere Kanalgruppen werden entfernt
 #             Neu-Marker wird nur gesetz, wenn auch bereits Kanäle seit dem
@@ -52,13 +52,13 @@ CHANNELSNEW="${CHANNELSCONF}.new"       # Neue Kanalliste
 CHANNELSBAK="${CHANNELSCONF}.bak"       # Kopie der Kanalliste
 CHANNELSREMOVED="${CHANNELSCONF}.removed" # Gelöschte Kanäle
 SETUPCONF='/etc/vdr/setup.conf'         # VDR Einstellungen (Wird nur gelesen)
-RUNDATE="$(date "+%d.%m.%Y %R")"        # Aktuelles Datum und Zeit
+printf -v RUNDATE '%(%d.%m.%Y %R)T\n' -1  # Aktuelles Datum und Zeit
 #DEBUG=1                                # Debug-Ausgaben
 group=0 ; delchan=0 ; marked=0          # Für die Statistik
 
 # Funktionen
-log() {     # Gibt die Meldung auf der Konsole und im Syslog aus
-  logger -s -t $(basename ${0%.*}) "$*"
+f_log() {  # Gibt die Meldung auf der Konsole und im Syslog aus
+  logger -s -t "$(basename ${0%.*})" "$*"
   [[ -n "$LOGFILE" ]] && echo "$*" >> "$LOGFILE"        # Log in Datei
 }
 
@@ -68,32 +68,32 @@ if [[ -n "$1" ]] ; then # Falls dem Skript die Tage übergeben wurden.
   [[ $1 =~ ^[0-9]+$ ]] && DAYS="$1"  # Numerischer Wert
 fi
 
-[[ -n "$LOGFILE" ]] && log "==> $RUNDATE - $(basename $0) - Start..."
+[[ -n "$LOGFILE" ]] && f_log "==> $RUNDATE - $(basename $0) #$VERSION - Start..."
 
 if [[ -e "$CHANNELSNEW" && $DAYS -ne 0 ]] ; then  # Erster Start?
-  ACT_DATE=$(date +%s) ; FDATE=$(stat -c %Y "${CHANNELSNEW}")
-  DIFF=$(($ACT_DATE - $FDATE))     # Sekunden
-  if [[ $DIFF -lt $(($DAYS*60*60*24)) ]] ; then
+  printf -v ACT_DATE '%(%s)T\n' -1 ; FDATE=$(stat -c %Y "${CHANNELSNEW}")
+  DIFF=$((ACT_DATE - FDATE))     # Sekunden
+  if [[ $DIFF -lt $((DAYS*60*60*24)) ]] ; then
     TAGE=$((DIFF /86400)) ; STD=$((DIFF % 86400 /3600))
-    MIN=$((DIFF % 3600 /60)) ; SEK=$((DIFF % 60))
+    MIN=$((DIFF % 3600 /60)) #; SEK=$((DIFF % 60))
     [[ $TAGE -gt 0 ]] && TAGSTR="$TAGE Tag(en) "
-    log "Letzte Ausführung vor $TAGSTR$STD Std. $MIN Min.! Stop."
+    f_log "Letzte Ausführung vor $TAGSTR$STD Std. $MIN Min.! Stop."
     exit 1                        # Letzter Start vor weniger als XX Tage!
   fi
 else
   if [[ $DAYS -eq 0 ]] ; then        # Erzwungener Start?
-    log "Erzwungener Start des Skript's"
+    f_log 'Erzwungener Start des Skripts'
    else                             # Erster Start?
-    log "Erster Start des Skript's"
+    f_log 'Erster Start des Skripts'
   fi
 fi
 
 while read -r LINE ; do  # Hier werden verschiedene VDR-Optionen geprüft
-  if [[ "$LINE" == "EPGScanTimeout = 0" ]] ; then
-    log "WARNUNG: EPG-Scan ist deaktiviert! (${LINE})"
+  if [[ "$LINE" == 'EPGScanTimeout = 0' ]] ; then
+    f_log "WARNUNG: EPG-Scan ist deaktiviert! (${LINE})"
   fi
-  if [[ "$LINE" == "UpdateChannels = 0" ]] ; then
-    log "FATAL: Kanäle aktualisieren ist deaktiviert! (${LINE})"
+  if [[ "$LINE" == 'UpdateChannels = 0' ]] ; then
+    f_log "FATAL: Kanäle aktualisieren ist deaktiviert! (${LINE})"
     exit 1  # Ohne Kanalaktualisierung geht das hier nicht!
   fi
 done < "$SETUPCONF"  # VDR-Einstellungen
@@ -102,7 +102,7 @@ if [[ -e "$CHANNELSCONF" ]] ; then  # Prüfen, ob die channels.conf existiert
   cp --force "$CHANNELSCONF" "$CHANNELSBAK"  # Kanalliste kopieren
   [[ -e "$CHANNELSNEW" ]] && rm --force "$CHANNELSNEW"  # Frühere Liste löschen
 else
-  log "FATAL: $CHANNELSCONF nicht gefunden!"
+  f_log "FATAL: $CHANNELSCONF nicht gefunden!"
   exit 1
 fi
 
@@ -114,46 +114,45 @@ OLDIFS="$IFS"                         # Interner Feldtrenner
 REMOVED=":==> Entfernt am ${RUNDATE}"
 
 while read -r CHANNEL ; do
-  if [[ "${CHANNEL:0:1}" = ":" ]] ; then   # Marker auslassen (: an 1. Stelle)
+  if [[ "${CHANNEL:0:1}" == ':' ]] ; then   # Marker auslassen (: an 1. Stelle)
     if [[ "$CHANNEL" = "$SORTMARKER" ]] ; then  # Marker für "sortchannels.sh"
       echo "$CHANNEL" >> "$CHANNELSNEW"         # Kanal in die neue Liste
       if [[ -n "$MARKERTMP" ]] ; then           # Gespeicherter Marker vorhanden?
-        unset -v MARKERTMP                      # Gespeicherten Marker löschen
+        unset -v 'MARKERTMP'                    # Gespeicherten Marker löschen
         ((delgroup++))
       fi
       continue                                  # Weiter mit der nächsten Zeile
     fi
     if [[ -n "$MARKERTMP" ]] ; then        # Gespeicherter Marker vorhanden?
-      log "Leere Kanalgruppe \"${MARKERTMP:1}\" entfernt!"
+      f_log "Leere Kanalgruppe \"${MARKERTMP:1}\" entfernt!"
       ((delgroup++))
     fi
     MARKERTMP="$CHANNEL"                   # Marker zwischenspeichern
     continue                               # Weiter mit der nächsten Zeile
   fi
-  if [[ -n "$VDROBSOLETE" && "$CHANNEL" =~ "$VDROBSOLETE" ]] ; then  # Markierung gefunden?
+  if [[ -n "$VDROBSOLETE" && "$CHANNEL" =~ $VDROBSOLETE ]] ; then  # Markierung gefunden?
     ((obsolete++)) ; OBSFOUND=1
     [[ "$DEBUG" ]] && echo "$VDROBSOLETE - $CHANNEL"
   fi
-  if [[ "$CHANNEL" =~ "$OLDMARKER" || -n "$OBSFOUND" ]] ; then  # Markierung gefunden?
+  if [[ "$CHANNEL" =~ $OLDMARKER || -n "$OBSFOUND" ]] ; then  # Markierung gefunden?
     if [[ -n "$REMOVED" ]] ; then
       echo "$REMOVED" >> "$CHANNELSREMOVED"  # Markierung nach *.removed
-      unset -v "REMOVED"                     # Markierung löschen
+      unset -v 'REMOVED'                     # Markierung löschen
     fi
     echo "$CHANNEL" >> "$CHANNELSREMOVED"    # Kanal nach *.removed
-    ((delchan++)) ; unset OBSFOUND
+    ((delchan++)) ; unset -v 'OBSFOUND'
     [[ "$DEBUG" ]] && echo "$OLDMARKER - $CHANNEL"
   else                                         # Keine Markierung
-    IFS=':'                                    # Daten sind mit : getrennt
-    CHANNELDATA=(${CHANNEL})                   # In Array einfügen
-    if [[ "${CHANNELDATA[0]}" =~ ";" ]] ; then
+    IFS=':' read -r -a CHANNELDATA <<< "$CHANNEL"  #In Array einfügen. Daten sind mit : getrennt
+    if [[ "${CHANNELDATA[0]}" =~ ';' ]] ; then
       CHANNEL="${CHANNEL/;/;$OLDMARKER}"       # Marker einfügen (Provider)
     else                                       # Kein Provider gefunden
       CHANNELDATA[0]="${CHANNELDATA[0]};$OLDMARKER"
-      CHANNEL="${CHANNELDATA[*]}"              # Aus dem Array -> Variable
+      IFS=':' CHANNEL="${CHANNELDATA[*]}"      # Aus dem Array -> Variable
     fi
     if [[ -n "$MARKERTMP" ]] ; then         # Gespeicherter Marker vorhanden?
       echo "$MARKERTMP" >> "$CHANNELSNEW"   # Marker in die neue Liste
-      unset -v "MARKERTMP"                  # Gespeicherten Marker löschen
+      unset -v 'MARKERTMP'                  # Gespeicherten Marker löschen
       ((group++))
     fi
     echo "$CHANNEL" >> "$CHANNELSNEW"       # Kanal in die neue Liste
@@ -164,11 +163,11 @@ done < "$CHANNELSBAK"  # Backup verwenden um konflikt mit VDR zu vermeiden
 # Als letzter Eintrag kommt noch ein Neu-Marker. Damit kann man schön
 #+kontrollieren, was seit dem Aufräumen wieder neu dazugekommen ist
 if [[ -n "$MARKERTMP" ]] ; then             # Gespeicherter Marker vorhanden?
-  if [[ "$MARKERTMP" =~ ":==" ]] ; then     # Keine neuen Kanäle seit letzem Lauf!
-    log "Keine neuen Kanäle seit letzem Lauf! (${MARKERTMP})"
+  if [[ "$MARKERTMP" =~ ':==' ]] ; then     # Keine neuen Kanäle seit letzem Lauf!
+    f_log "Keine neuen Kanäle seit letzem Lauf! (${MARKERTMP})"
   fi
   echo "$MARKERTMP" >> "$CHANNELSNEW"       # Marker in die neue Liste
-  unset -v "MARKERTMP"                      # Gespeicherten Marker löschen
+  unset -v 'MARKERTMP'                      # Gespeicherten Marker löschen
   ((group++))
 else                                        # Letzter war ein Kanaleintrag
   echo ":==> Neu seit $RUNDATE" >> "$CHANNELSNEW"
@@ -177,7 +176,7 @@ fi
 if [[ ! "$(pidof vdr)" ]] ; then            # VDR läuft?
   cp --force "$CHANNELSNEW" "$CHANNELSCONF" # Neue Liste aktivieren
 else
-  log "VDR läuft! Neue Kanalliste: $CHANNELSNEW"
+  f_log "VDR läuft! Neue Kanalliste: $CHANNELSNEW"
 fi
 
 if [[ -e "$LOGFILE" ]] ; then               # Log-Datei umbenennen, wenn zu groß
@@ -186,10 +185,10 @@ if [[ -e "$LOGFILE" ]] ; then               # Log-Datei umbenennen, wenn zu gro�
 fi
 
 # Statistik
-log "$group Kanalgruppen (:) gefunden"
-[ -n "$delgroup" ] && log "$delgroup leere Kanalgruppe(n) entfernt"
-log "$delchan Kanäle wurden nach $CHANNELSREMOVED verschoben"
-[ -n "$obsolete" ] && log "$obsolete Kanäle vom VDR als \"OBSOLETE\" markiert"
-log "$marked Kanäle wurden neu markiert (${OLDMARKER})"
+f_log "$group Kanalgruppen (:) gefunden"
+[ -n "$delgroup" ] && f_log "$delgroup leere Kanalgruppe(n) entfernt"
+f_log "$delchan Kanäle wurden nach $CHANNELSREMOVED verschoben"
+[ -n "$obsolete" ] && f_log "$obsolete Kanäle vom VDR als \"OBSOLETE\" markiert"
+f_log "$marked Kanäle wurden neu markiert (${OLDMARKER})"
 
 exit
