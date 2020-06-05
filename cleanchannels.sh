@@ -2,7 +2,7 @@
 
 # cleanchannels.sh - Kanalliste des VDR aufräumen
 # Author: MegaV0lt
-VERSION=161011
+VERSION=191008
 
 # 01.09.2013: Leere Kanalgruppen werden entfernt
 #             Neu-Marker wird nur gesetz, wenn auch bereits Kanäle seit dem
@@ -42,6 +42,7 @@ VERSION=161011
 # Einstellungen
 CHANNELSCONF='/etc/vdr/channels.conf'   # Kanalliste des VDR
 OLDMARKER='-OLD-'                       # Markierung (Keine ~ ; : verwenden!)
+SORTMARKER=':Andere'                    # Marker für "sortchannels.sh" behalten
 # VDR ab 2.1.3 - OBSOLETE Marker. Auskommentieren, wenn Kanäle nicht entfernt werden sollen
 VDROBSOLETE='OBSOLETE'                  # Auskommentieren, wenn OBSOLETE drin bleiben soll
 DAYS=25                                 # Liste alle XX Tage prüfen
@@ -114,6 +115,14 @@ REMOVED=":==> Entfernt am ${RUNDATE}"
 
 while read -r CHANNEL ; do
   if [[ "${CHANNEL:0:1}" = ":" ]] ; then   # Marker auslassen (: an 1. Stelle)
+    if [[ "$CHANNEL" = "$SORTMARKER" ]] ; then  # Marker für "sortchannels.sh"
+      echo "$CHANNEL" >> "$CHANNELSNEW"         # Kanal in die neue Liste
+      if [[ -n "$MARKERTMP" ]] ; then           # Gespeicherter Marker vorhanden?
+        unset -v MARKERTMP                      # Gespeicherten Marker löschen
+        ((delgroup++))
+      fi
+      continue                                  # Weiter mit der nächsten Zeile
+    fi
     if [[ -n "$MARKERTMP" ]] ; then        # Gespeicherter Marker vorhanden?
       log "Leere Kanalgruppe \"${MARKERTMP:1}\" entfernt!"
       ((delgroup++))
