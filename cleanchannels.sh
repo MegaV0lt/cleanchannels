@@ -2,7 +2,7 @@
 
 # cleanchannels.sh - Kanalliste des VDR aufräumen
 # Author: MegaV0lt
-VERSION=200605
+VERSION=200606
 
 # 01.09.2013: Leere Kanalgruppen werden entfernt
 #             Neu-Marker wird nur gesetz, wenn auch bereits Kanäle seit dem
@@ -106,8 +106,6 @@ else
   exit 1
 fi
 
-OLDIFS="$IFS"                         # Interner Feldtrenner
-
 # Die $CHANNELSREMOVED sammelt die gelöschten Kanäle. Markierung setzen, um
 #+später leichter zu sehen, wann die Kanäle entfernt wurden. Die Markierung wird
 #+nur gesetzt, wenn auch mindestens ein Kanal gelöscht wird.
@@ -146,9 +144,8 @@ while read -r CHANNEL ; do
     IFS=':' read -r -a CHANNELDATA <<< "$CHANNEL"  #In Array einfügen. Daten sind mit : getrennt
     if [[ "${CHANNELDATA[0]}" =~ ';' ]] ; then
       CHANNEL="${CHANNEL/;/;$OLDMARKER}"       # Marker einfügen (Provider)
-    else                                       # Kein Provider gefunden
-      CHANNELDATA[0]="${CHANNELDATA[0]};$OLDMARKER"
-      IFS=':' CHANNEL="${CHANNELDATA[*]}"      # Aus dem Array -> Variable
+    else     
+      CHANNEL="${CHANNEL/:/;$OLDMARKER:}"      # Kein Provider gefunden
     fi
     if [[ -n "$MARKERTMP" ]] ; then         # Gespeicherter Marker vorhanden?
       echo "$MARKERTMP" >> "$CHANNELSNEW"   # Marker in die neue Liste
@@ -156,7 +153,7 @@ while read -r CHANNEL ; do
       ((group++))
     fi
     echo "$CHANNEL" >> "$CHANNELSNEW"       # Kanal in die neue Liste
-    IFS="$OLDIFS" ; ((marked++))
+    ((marked++))
   fi
 done < "$CHANNELSBAK"  # Backup verwenden um konflikt mit VDR zu vermeiden
 
