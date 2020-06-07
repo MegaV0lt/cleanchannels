@@ -2,7 +2,7 @@
 
 # cleanchannels.sh - Kanalliste des VDR aufräumen
 # Author: MegaV0lt
-VERSION=200606
+VERSION=200607
 
 # 01.09.2013: Leere Kanalgruppen werden entfernt
 #             Neu-Marker wird nur gesetz, wenn auch bereits Kanäle seit dem
@@ -39,7 +39,9 @@ VERSION=200606
 #+8000_cleanchannels wie folgt unter /etc/vdr.d angelegt werden:
 # echo "/usr/local/sbin/cleanchannels.sh 25" > /etc/vdr.d/8000_cleanchannels
 
-# Einstellungen
+# Variablen
+SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
+SELF_NAME="${SELF##*/}"
 CHANNELSCONF='/etc/vdr/channels.conf'   # Kanalliste des VDR
 OLDMARKER='-OLD-'                       # Markierung (Keine ~ ; : verwenden!)
 SORTMARKER=':Andere'                    # Marker für "sortchannels.sh" behalten
@@ -58,7 +60,7 @@ group=0 ; delchan=0 ; marked=0          # Für die Statistik
 
 # Funktionen
 f_log() {  # Gibt die Meldung auf der Konsole und im Syslog aus
-  logger -s -t "$(basename ${0%.*})" "$*"
+  logger -s -t "$SELF_NAME" "$*"
   [[ -n "$LOGFILE" ]] && echo "$*" >> "$LOGFILE"        # Log in Datei
 }
 
@@ -68,7 +70,7 @@ if [[ -n "$1" ]] ; then # Falls dem Skript die Tage übergeben wurden.
   [[ $1 =~ ^[0-9]+$ ]] && DAYS="$1"  # Numerischer Wert
 fi
 
-[[ -n "$LOGFILE" ]] && f_log "==> $RUNDATE - $(basename $0) #$VERSION - Start..."
+[[ -n "$LOGFILE" ]] && f_log "==> $RUNDATE - $SELF_NAME #$VERSION - Start..."
 
 if [[ -e "$CHANNELSNEW" && $DAYS -ne 0 ]] ; then  # Erster Start?
   printf -v ACT_DATE '%(%s)T\n' -1 ; FDATE=$(stat -c %Y "${CHANNELSNEW}")
@@ -113,20 +115,20 @@ REMOVED=":==> Entfernt am ${RUNDATE}"
 
 while read -r CHANNEL ; do
   if [[ "${CHANNEL:0:1}" == ':' ]] ; then   # Marker auslassen (: an 1. Stelle)
-    if [[ "$CHANNEL" = "$SORTMARKER" ]] ; then  # Marker für "sortchannels.sh"
-      echo "$CHANNEL" >> "$CHANNELSNEW"         # Kanal in die neue Liste
-      if [[ -n "$MARKERTMP" ]] ; then           # Gespeicherter Marker vorhanden?
-        unset -v 'MARKERTMP'                    # Gespeicherten Marker löschen
+    if [[ "$CHANNEL" == "$SORTMARKER" ]] ; then  # Marker für "sortchannels.sh"
+      echo "$CHANNEL" >> "$CHANNELSNEW"          # Kanal in die neue Liste
+      if [[ -n "$MARKERTMP" ]] ; then            # Gespeicherter Marker vorhanden?
+        unset -v 'MARKERTMP'                     # Gespeicherten Marker löschen
         ((delgroup++))
       fi
-      continue                                  # Weiter mit der nächsten Zeile
+      continue                                   # Weiter mit der nächsten Zeile
     fi
-    if [[ -n "$MARKERTMP" ]] ; then        # Gespeicherter Marker vorhanden?
+    if [[ -n "$MARKERTMP" ]] ; then  # Gespeicherter Marker vorhanden?
       f_log "Leere Kanalgruppe \"${MARKERTMP:1}\" entfernt!"
       ((delgroup++))
     fi
-    MARKERTMP="$CHANNEL"                   # Marker zwischenspeichern
-    continue                               # Weiter mit der nächsten Zeile
+    MARKERTMP="$CHANNEL"             # Marker zwischenspeichern
+    continue                         # Weiter mit der nächsten Zeile
   fi
   if [[ -n "$VDROBSOLETE" && "$CHANNEL" =~ $VDROBSOLETE ]] ; then  # Markierung gefunden?
     ((obsolete++)) ; OBSFOUND=1
