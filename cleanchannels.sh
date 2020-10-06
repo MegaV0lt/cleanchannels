@@ -46,7 +46,7 @@ CHANNELSCONF='/etc/vdr/channels.conf'   # Kanalliste des VDR
 OLDMARKER='-OLD-'                       # Markierung (Keine ~ ; : verwenden!)
 SORTMARKER=':Andere'                    # Marker für "sortchannels.sh" behalten
 # VDR ab 2.1.3 - OBSOLETE Marker. Auskommentieren, wenn Kanäle nicht entfernt werden sollen
-VDROBSOLETE='OBSOLETE'                  # Auskommentieren, wenn OBSOLETE drin bleiben soll
+#VDROBSOLETE='OBSOLETE'                  # Auskommentieren, wenn OBSOLETE drin bleiben soll
 DAYS=25                                 # Liste alle XX Tage prüfen
 LOGFILE='/var/log/cleanchannels.log'    # Aktivieren für zusätzliches Log
 MAXLOGSIZE=$((50*1024))                 # Log-Datei: Maximale größe in Byte
