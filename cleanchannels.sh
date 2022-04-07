@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # cleanchannels.sh - Kanalliste des VDR aufräumen
 # Author: MegaV0lt
-VERSION=200607
+VERSION=220407
 
 # 01.09.2013: Leere Kanalgruppen werden entfernt
 #             Neu-Marker wird nur gesetz, wenn auch bereits Kanäle seit dem
